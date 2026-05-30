@@ -66,11 +66,11 @@ You can always download newest nightly build **[here](https://github.com/bartlom
 7. Run the src\main.py file
    - ```python3.11 src/main.py```
 
-# Building on MacOs
+# Building on macOS
 
-1. Download Python 3.11.0 for MacOs
+1. Download Python 3.11.0 for macOS
    - ```curl -O https://www.python.org/ftp/python/3.11.0/python-3.11.0-macos11.pkg```
-2. Install Python 3.11.0 by double clicking on PKG file
+2. Install Python 3.11.0 by double-clicking on PKG file
 and by following on-screen instructions
 3. Check installation
    - ```python3.11 --version```
