@@ -3,10 +3,12 @@ Copyright © 2024  Bartłomiej Duda
 License: GPL-3.0 License
 """
 
-import time
 from typing import Optional
+from PIL import Image
 
-from reversebox.common.logger import get_logger
+
+
+
 from reversebox.compression.compression_lz4 import LZ4Handler
 from reversebox.compression.compression_packbits import decompress_packbits
 from reversebox.compression.compression_rle_emergency import decompress_rle_emergency
@@ -395,12 +397,36 @@ class HeatImage:
 
         return True
 
-    def image_reload(self) -> bool:
-        logger.info("Image reload start")
-        start_time = time.time()
-        self.is_preview_error = False
-        self._image_read()
-        self._image_decode()
-        execution_time = time.time() - start_time
-        logger.info(f"Image reload for pixel_format={self.gui_params.pixel_format} finished successfully. Time: {round(execution_time, 2)} seconds.")
-        return True
+    def import_png_and_insert(self, png_path: str) -> bool:
+        """Import a PNG file and insert it back into the original image file.
+
+        The PNG must have the same dimensions and pixel format as the original image.
+        This method replaces the encoded image data with the raw pixel bytes from the PNG
+        and writes them back to the source file at the original offset.
+        """
+        try:
+            # Load PNG
+            img = Image.open(png_path)
+            img = img.convert('RGBA')  # Ensure 32-bit RGBA
+            width, height = img.size
+            if width != self.gui_params.img_width or height != self.gui_params.img_height:
+                logger.error("PNG dimensions do not match the original image dimensions.")
+                return False
+
+            # Get raw pixel bytes
+            raw_bytes = img.tobytes()
+
+            # Replace encoded image data
+            self.encoded_image_data = raw_bytes
+
+            # Write back to file at the original offset
+            with open(self.gui_params.img_file_path, "r+b") as f:
+                f.seek(self.gui_params.img_start_offset)
+                f.write(self.encoded_image_data)
+
+            logger.info(f"Successfully imported PNG {png_path} into image file.")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to import PNG: {e}")
+            return False
+
