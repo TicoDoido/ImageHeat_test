@@ -9,7 +9,7 @@ on:
 
 # ==== VARIÁVEL DE AMBIENTE PARA FORÇAR NODE 24 ====
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # <‑‑ silencia o aviso de depreciação
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # silencia o aviso de depreciação
 
 jobs:
   build-windows:
@@ -19,6 +19,15 @@ jobs:
         shell: pwsh   # usa PowerShell (padrão no Windows)
 
     steps:
+      # -------------------------------------------------------
+      # 0️⃣ Diagnóstico preliminar (pasta de trabalho)
+      # -------------------------------------------------------
+      - name: Show working directory (debug)
+        run: |
+          Write-Host "Current directory: $(Get-Location)"
+          Write-Host "Repository root listing:"
+          Get-ChildItem -Force
+
       # -------------------------------------------------------
       # 1️⃣ Checkout do código
       # -------------------------------------------------------
@@ -43,41 +52,6 @@ jobs:
           pip install -r requirements.txt
 
       # -------------------------------------------------------
-      # 4️⃣ Build do executável (cx_Freeze)
-      # -------------------------------------------------------
-      - name: Build executable with cx_Freeze
-        run: |
-          python setup.py build
-
-      # -------------------------------------------------------
-      # 5️⃣ Verifica o que foi gerado (debug – opcional)
-      # -------------------------------------------------------
-     # -------------------------------------------------------
-     # 0️⃣ Diagnóstico preliminar (pasta de trabalho)
-     # -------------------------------------------------------
-     - name: Show working directory (debug)
-       run: |
-         Write-Host "Current directory: $(Get-Location)"
-         Write-Host "Repository root listing:"
-         Get-ChildItem -Force
-
-     # -------------------------------------------------------
-     # 1️⃣ Checkout do código
-     # -------------------------------------------------------
-     - name: Checkout repository
-       uses: actions/checkout@v4   # já funciona com Node 24
-
-     # -------------------------------------------------------
-     # 2️⃣ Instalação do Python 3.11
-     # -------------------------------------------------------
-     - name: Set up Python 3.11
-       uses: actions/setup-python@v5
-       with:
-         python-version: "3.11"
-         cache: "pip"
-
-     # -------------------------------------------------------
-     # 3️⃣ Instalação das dependências do projeto
       # 4️⃣ Define NIGHTLY_STR (release vs nightly)
       # -------------------------------------------------------
       - name: Set NIGHTLY_STR (release)
@@ -88,54 +62,53 @@ jobs:
         if: ${{ contains(github.ref, 'nightly') }}
         run: echo "NIGHTLY_STR=nightly" >> $GITHUB_ENV   # nightly build
 
+      # -------------------------------------------------------
+      # 5️⃣ Build do executável com cx_Freeze
+      # -------------------------------------------------------
+      - name: Build executable with cx_Freeze
+        id: build
+        run: |
+          # Captura a saída completa para diagnóstico
+          python setup.py build 2>&1 | Tee-Object -FilePath build_log.txt
+          # Verifica se a pasta esperada foi criada
+          if (-Not (Test-Path -Path ".\build_final\ImageHeat")) {
+            Write-Error "Pasta build_final/ImageHeat não encontrada após o build."
+            exit 1
+          }
 
-     # -------------------------------------------------------
-     # 5️⃣ Build do executável com cx_Freeze
-     # -------------------------------------------------------
-     - name: Build executable with cx_Freeze
-       id: build
-       run: |
-         # Captura a saída completa para diagnóstico
-         python setup.py build 2>&1 | Tee-Object -FilePath build_log.txt
-         # Verifica se a pasta esperada foi criada
-         if (-Not (Test-Path -Path ".\\build_final\\ImageHeat")) {
-           Write-Error "Pasta build_final/ImageHeat não encontrada após o build."
-           exit 1
-         }
+      # -------------------------------------------------------
+      # 6️⃣ Upload do log de build (para depuração)
+      # -------------------------------------------------------
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build_log.txt
 
-     # -------------------------------------------------------
-     # 6️⃣ Upload do log de build (para depuração)
-     # -------------------------------------------------------
-     - name: Upload build log
-       if: always()
-       uses: actions/upload-artifact@v4
-       with:
-         name: build-log
-         path: build_log.txt
+      # -------------------------------------------------------
+      # 7️⃣ Listar o que foi gerado (debug – opcional)
+      # -------------------------------------------------------
+      - name: List build output (debug)
+        if: always()
+        run: |
+          Write-Host "=== Conteúdo de build_final/ImageHeat ==="
+          Get-ChildItem -Recurse -Force -File -Path .\build_final\ImageHeat
 
-     # -------------------------------------------------------
-     # 7️⃣ Listar o que foi gerado (debug – opcional)
-     # -------------------------------------------------------
-     - name: List build output (debug)
-       if: always()
-       run: |
-         Write-Host "=== Conteúdo de build_final/ImageHeat ==="
-         Get-ChildItem -Recurse -Force -File -Path .\\build_final\\ImageHeat
+      # -------------------------------------------------------
+      # 8️⃣ Upload do artefato final (executável)
+      # -------------------------------------------------------
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImageHeat-Windows
+          path: build_final/ImageHeat/**
 
-     # -------------------------------------------------------
-     # 8️⃣ Upload do artefato final (executável)
-     # -------------------------------------------------------
-     - name: Upload build artifact
-       uses: actions/upload-artifact@v4
-       with:
-         name: ImageHeat-Windows
-         path: build_final/ImageHeat/**
-
-     # -------------------------------------------------------
-     # 9️⃣ (Opcional) Cria um Release quando houver tag
-     # -------------------------------------------------------
-     - name: Create GitHub Release (if tag)
-       if: startsWith(github.ref, 'refs/tags/')
-       uses: softprops/action-gh-release@v2
-       with:
-         files: build_final/ImageHeat/**   # anexa o executável ao release
+      # -------------------------------------------------------
+      # 9️⃣ (Opcional) Cria um Release quando houver tag
+      # -------------------------------------------------------
+      - name: Create GitHub Release (if tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build_final/ImageHeat/**   # anexa o executável ao release
