@@ -78,17 +78,16 @@ jobs:
 
      # -------------------------------------------------------
      # 3️⃣ Instalação das dependências do projeto
-     # -------------------------------------------------------
-     - name: Install dependencies
-       run: |
-         python -m pip install --upgrade pip
-         pip install -r requirements.txt
+      # 4️⃣ Define NIGHTLY_STR (release vs nightly)
+      # -------------------------------------------------------
+      - name: Set NIGHTLY_STR (release)
+        if: ${{ !contains(github.ref, 'nightly') }}
+        run: echo "NIGHTLY_STR=" >> $GITHUB_ENV   # release – empty
 
-     # -------------------------------------------------------
-     # 4️⃣ Forçar build "release" (sem nightly)
-     # -------------------------------------------------------
-     - name: Force release build (no nightly)
-       run: echo "NIGHTLY_STR=" >> $GITHUB_ENV   # garante string vazia
+      - name: Set NIGHTLY_STR (nightly)
+        if: ${{ contains(github.ref, 'nightly') }}
+        run: echo "NIGHTLY_STR=nightly" >> $GITHUB_ENV   # nightly build
+
 
      # -------------------------------------------------------
      # 5️⃣ Build do executável com cx_Freeze
