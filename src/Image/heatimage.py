@@ -53,6 +53,7 @@ from src.Image.constants import (
     get_endianess_id,
     get_swizzling_id,
 )
+from reversebox.common.logger import get_logger
 from src.Image.heatpalette import HeatPalette
 
 logger = get_logger(__name__)
